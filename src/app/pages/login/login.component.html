@@ -1,0 +1,88 @@
+<div class="login-shell">
+  <div class="login-panel">
+    <div class="brand">
+      <span class="brand-mark">LK</span>
+      <div>
+        <h1>Language Key Bulk Tool</h1>
+        <p>Master Admin · admin.dev.futuretravelplatform.com</p>
+      </div>
+    </div>
+
+    <form
+      class="login-form"
+      [formGroup]="otpMode() ? otpForm : loginForm"
+      (ngSubmit)="otpMode() ? verifyOtp() : submit()"
+    >
+      <ng-container *ngIf="!otpMode(); else otpBlock">
+        <label>
+          <span>Email</span>
+          <input type="email" formControlName="email" autocomplete="username" />
+        </label>
+        <label>
+          <span>Password</span>
+          <div class="pass-row">
+            <input
+              [type]="showPassword ? 'text' : 'password'"
+              formControlName="password"
+              autocomplete="current-password"
+            />
+            <button type="button" class="ghost" (click)="showPassword = !showPassword">
+              {{ showPassword ? 'Hide' : 'Show' }}
+            </button>
+          </div>
+        </label>
+        <button class="primary" type="submit" [disabled]="loading()">
+          {{ loading() ? 'Signing in…' : 'Sign in' }}
+        </button>
+      </ng-container>
+
+      <ng-template #otpBlock>
+        <p class="hint">MFA is enabled for this account. Enter the OTP sent to your email/phone.</p>
+        <label>
+          <span>OTP</span>
+          <input type="text" formControlName="otp" maxlength="6" inputmode="numeric" />
+        </label>
+        <button class="primary" type="submit" [disabled]="loading()">
+          {{ loading() ? 'Verifying…' : 'Verify OTP' }}
+        </button>
+      </ng-template>
+
+      <p class="error" *ngIf="error()">{{ error() }}</p>
+
+      <button type="button" class="linkish" (click)="showImport.set(!showImport())">
+        {{ showImport() ? 'Hide' : 'Use' }} Session Import (from Master Admin)
+      </button>
+    </form>
+
+    <div class="import-box" *ngIf="showImport()" [formGroup]="importForm">
+      <p class="hint">
+        Login at
+        <a href="https://admin.dev.futuretravelplatform.com/" target="_blank" rel="noopener">
+          admin.dev.futuretravelplatform.com
+        </a>
+        then paste Session Storage values: JwtToken, RefreshToken, JwtTokenExpiry, StaffuserId.
+      </p>
+      <label>
+        <span>JwtToken *</span>
+        <textarea formControlName="jwtToken" rows="3"></textarea>
+      </label>
+      <label>
+        <span>RefreshToken</span>
+        <textarea formControlName="refreshToken" rows="2"></textarea>
+      </label>
+      <label>
+        <span>JwtTokenExpiry</span>
+        <input type="text" formControlName="jwtTokenExpiry" />
+      </label>
+      <label>
+        <span>StaffuserId *</span>
+        <input type="text" formControlName="staffUserId" />
+      </label>
+      <label>
+        <span>First name (optional)</span>
+        <input type="text" formControlName="firstName" />
+      </label>
+      <button class="primary" type="button" (click)="importSession()">Import & continue</button>
+    </div>
+  </div>
+</div>

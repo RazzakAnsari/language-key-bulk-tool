@@ -1,0 +1,51 @@
+{
+  "/master-api": {
+    "target": "https://masadapi.dev.futuretravelplatform.com",
+    "secure": true,
+    "changeOrigin": true,
+    "logLevel": "warn",
+    "pathRewrite": { "^/master-api": "/api" }
+  },
+  "/master-go-api": {
+    "target": "https://masadapigo.dev.futuretravelplatform.com",
+    "secure": true,
+    "changeOrigin": true,
+    "logLevel": "warn",
+    "pathRewrite": { "^/master-go-api": "/api" }
+  },
+  "/cursor-translate": {
+    "target": "http://localhost:4310",
+    "secure": false,
+    "changeOrigin": true,
+    "logLevel": "warn",
+    "pathRewrite": { "^/cursor-translate": "" }
+  },
+  "/openai-api": {
+    "target": "https://api.openai.com",
+    "secure": true,
+    "changeOrigin": true,
+    "logLevel": "warn",
+    "pathRewrite": { "^/openai-api": "" }
+  },
+  "/gemini-api": {
+    "target": "https://generativelanguage.googleapis.com",
+    "secure": true,
+    "changeOrigin": true,
+    "logLevel": "warn",
+    "pathRewrite": { "^/gemini-api": "" }
+  },
+  "/gtx-api": {
+    "target": "https://translate.googleapis.com",
+    "secure": true,
+    "changeOrigin": true,
+    "logLevel": "warn",
+    "pathRewrite": { "^/gtx-api": "" }
+  },
+  "/mymemory-api": {
+    "target": "https://api.mymemory.translated.net",
+    "secure": true,
+    "changeOrigin": true,
+    "logLevel": "warn",
+    "pathRewrite": { "^/mymemory-api": "" }
+  }
+}

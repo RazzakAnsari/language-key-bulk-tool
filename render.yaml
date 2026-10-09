@@ -1,0 +1,15 @@
+# Free host: https://render.com — connects to this GitHub repo
+services:
+  - type: web
+    name: language-key-bulk-tool
+    runtime: node
+    plan: free
+    buildCommand: npm ci && npm run build
+    startCommand: npm run start:prod
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+      - key: CURSOR_API_KEY
+        sync: false
+      - key: CURSOR_MODEL
+        value: composer-2.5

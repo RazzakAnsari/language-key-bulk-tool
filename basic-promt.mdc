@@ -1,0 +1,58 @@
+---
+description: Global implementation standards — conditions first, DRY, reuse, no regressions, project style
+alwaysApply: true
+---
+
+# Implementation Standards (CBT_Admin)
+
+**Never write code until all applicable checks below pass.** If any check fails, stop and fix the approach first.
+
+## 1. Pre-Implementation Checklist (mandatory)
+
+Before adding or changing logic:
+
+1. **Read surrounding code** — same file, sibling files, and existing services in that feature/module.
+2. **Search for existing logic** — grep for related methods, APIs, models, constants, and helpers before creating new ones.
+3. **List conditions/guards** — every flag, status, role, permission, and edge case the change must respect.
+4. **Confirm scope** — change only what the task requires; no unrelated refactors or drive-by edits.
+5. **Plan reuse** — identify which existing function, service, component, or utility can be extended.
+
+## 2. No Code Repetition (DRY)
+
+- Do **not** copy-paste API calls, validation, navigation, formatting, or business rules across files.
+- Extract shared logic only when used at **2+ real call sites** — avoid one-off abstractions.
+- Reuse existing **constants**, **models/interfaces**, **enums**, **API URL files**, and **shared components/modals**.
+- Business rules and UI visibility must have **one source of truth** (service/helper) — not duplicated in templates or sibling components.
+
+## 3. Reuse Before Create
+
+- Extend an existing service or method instead of writing a parallel implementation.
+- Use project HTTP wrappers (`ApiService`, module-specific `*ApiCallService`) — no duplicate HTTP layers.
+- Use existing shared UI from `src/app/shared/` and module `shared/` folders before building new UI.
+- Follow established patterns in the same module (e.g. `*DataService` for state, `*FuncService` for orchestration).
+
+## 4. Do Not Break Existing Logic
+
+- **Extend, don't replace** — add guards/branches; avoid rewriting working flows unless explicitly requested.
+- **Preserve call order** — do not skip validation, API steps, or gates that existing flows depend on.
+- **Minimal diff** — smallest change that solves the task; no formatting-only or unrelated file edits.
+- After changes, mentally trace **affected user flows** and ensure previous behaviour still works.
+- New condition checks must **align with** existing helpers — never contradict them.
+
+## 5. Project Coding Style
+
+- **Angular**: match repo patterns — standalone components, `signal()` for reactive state, `inject()` where used nearby.
+- **Services**: `@Injectable({ providedIn: 'root' })` for shared services unless module scope is already established.
+- **Naming**: `camelCase` methods/variables, `PascalCase` classes/components, existing suffixes (`*Service`, `*Component`).
+- **Templates**: keep business logic in TS/services; templates bind to properties, getters, or signals — not inline complex logic.
+- **No method calls in templates for conditions** — do **not** invoke component methods in `*ngIf`, `@if`, `[class]`, `[hidden]`, `[disabled]`, or `{{ }}` bindings (e.g. avoid `*ngIf="checkVisibility()"`, `@if (canEdit())` when these are methods). **Signals are allowed** — reading a signal with `()` is fine (e.g. `@if (isVisible())`, `[disabled]="isLoading()"` when `isVisible` / `isLoading` are `signal()` or `computed()`). Otherwise use a plain property or getter. **Event handlers are allowed** — `(click)`, `(change)`, `(submit)`, etc. may call methods.
+- **Comments**: only for non-obvious business rules — not for self-explanatory code.
+- **Imports & structure**: follow the same folder layout and import style as neighbouring files.
+
+## 6. Implementation Order
+
+```
+Understand task → Read & search existing code → List all conditions → Pick reuse target → Minimal diff → Verify no regression
+```
+
+If unsure whether logic already exists, **search first** — duplicating is worse than asking.

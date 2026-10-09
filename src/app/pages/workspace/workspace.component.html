@@ -1,0 +1,379 @@
+<div class="app" [class.menu-open]="menuOpen()">
+  <div class="scrim" *ngIf="menuOpen()" (click)="closeMenu()"></div>
+
+  <aside class="sidebar" [attr.aria-hidden]="!menuOpen()">
+    <div class="sidebar-head">
+      <div class="brand-mini">
+        <span class="mark">RM</span>
+        <strong>Resource Manager</strong>
+      </div>
+      <button type="button" class="icon-btn" (click)="closeMenu()" aria-label="Close menu">✕</button>
+    </div>
+
+    <nav class="side-nav">
+      <p class="nav-label">Menu</p>
+      <button
+        type="button"
+        class="nav-item"
+        [class.on]="activePage() === 'master'"
+        (click)="openMaster()"
+      >
+        <span class="ico">▣</span> Master
+      </button>
+      <button
+        type="button"
+        class="nav-item"
+        [class.on]="activePage() === 'settings'"
+        (click)="openSettingsPage()"
+      >
+        <span class="ico">⚙</span> Settings
+      </button>
+    </nav>
+
+    <div class="side-foot">
+      <div class="user-row">
+        <span class="avatar">{{ (userName() || 'U').charAt(0) }}</span>
+        <div>
+          <strong>{{ userName() || 'User' }}</strong>
+          <small>{{ providerLabel() }}</small>
+        </div>
+      </div>
+      <button type="button" class="btn ghost full" (click)="logout()">Logout</button>
+    </div>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <div class="top-left">
+        <button type="button" class="menu-btn" (click)="toggleMenu()" aria-label="Open menu">
+          <span></span><span></span><span></span>
+        </button>
+        <div class="title-block">
+          <h1>{{ activePage() === 'settings' ? 'Settings' : 'Master' }}</h1>
+          <span class="step-chip" *ngIf="activePage() === 'master'">{{ step() }} · {{ stepTitle() }}</span>
+          <span class="step-chip" *ngIf="activePage() === 'settings'">API keys</span>
+        </div>
+      </div>
+      <div class="top-right">
+        <span class="status-pill" [class.warn]="!settingsSvc.hasActiveKey()">{{ providerLabel() }}</span>
+        <span class="user-chip">{{ userName() }}</span>
+      </div>
+    </header>
+
+    <!-- SETTINGS PAGE -->
+    <div class="content" *ngIf="activePage() === 'settings'">
+      <section class="panel settings-panel" [formGroup]="settingsForm">
+        <div class="panel-head">
+          <h2>API keys</h2>
+        </div>
+
+        <label>
+          Provider
+          <select formControlName="provider">
+            <option value="free">Built-in Free</option>
+            <option value="openai">OpenAI</option>
+            <option value="gemini">Gemini</option>
+            <option value="cursor">Cursor</option>
+          </select>
+        </label>
+
+        <div class="settings-grid">
+          <label>OpenAI key <input type="password" formControlName="openAiApiKey" autocomplete="off" /></label>
+          <label>OpenAI model <input type="text" formControlName="openAiModel" /></label>
+          <label>Gemini key <input type="password" formControlName="geminiApiKey" autocomplete="off" /></label>
+          <label>Gemini model <input type="text" formControlName="geminiModel" /></label>
+          <label>Cursor key <input type="password" formControlName="cursorApiKey" autocomplete="off" /></label>
+          <label>Cursor model <input type="text" formControlName="cursorModel" /></label>
+        </div>
+
+        <div class="actions end">
+          <button type="button" class="btn ghost" (click)="openMaster()">Cancel</button>
+          <button type="button" class="btn primary" (click)="saveSettings()">Save</button>
+        </div>
+      </section>
+    </div>
+
+    <!-- MASTER PAGE -->
+    <div class="content" *ngIf="activePage() === 'master'">
+      <div class="stepper">
+        <button type="button" class="step" [class.on]="step() === 1" [class.done]="step() > 1" (click)="go(1)">1</button>
+        <i></i>
+        <button type="button" class="step" [class.on]="step() === 2" [class.done]="step() > 2" (click)="go(2)" [disabled]="!hasKeys()">2</button>
+        <i></i>
+        <button type="button" class="step" [class.on]="step() === 3" [class.done]="step() > 3" (click)="go(3)" [disabled]="!hasKeys()">3</button>
+        <i></i>
+        <button type="button" class="step" [class.on]="step() === 4" (click)="go(4)" [disabled]="!hasKeys()">4</button>
+      </div>
+
+      <!-- STEP 1 -->
+      <section class="panel" *ngIf="step() === 1" [formGroup]="generateForm">
+        <div class="panel-head">
+          <h2>English texts</h2>
+          <button type="button" class="btn accent" (click)="addEnglishField()">+ Add</button>
+        </div>
+
+        <div class="two-col">
+          <label>
+            Reference key
+            <input type="text" formControlName="referenceKey" placeholder="k_printItinerary" />
+          </label>
+          <label>
+            Translator
+            <div class="provider-row">
+              <select formControlName="provider">
+                <option value="free">Built-in Free</option>
+                <option value="openai">OpenAI</option>
+                <option value="gemini">Gemini</option>
+                <option value="cursor">Cursor</option>
+              </select>
+              <button type="button" class="btn" (click)="openSettingsPage()">API keys</button>
+            </div>
+          </label>
+        </div>
+
+        <div class="text-list" formArrayName="texts">
+          <div class="text-row" *ngFor="let ctrl of texts.controls; let i = index" [formGroupName]="i">
+            <span class="text-no">{{ i + 1 }}</span>
+            <textarea
+              rows="3"
+              formControlName="value"
+              [placeholder]="i === 0 ? 'Welcome back' : 'English text'"
+            ></textarea>
+            <button
+              type="button"
+              class="btn danger-outline"
+              (click)="removeEnglishField(i)"
+              [disabled]="texts.length <= 1"
+            >
+              Remove
+            </button>
+          </div>
+        </div>
+
+        <div class="actions end">
+          <button type="button" class="btn primary big" (click)="buildKeys()">Generate keys</button>
+        </div>
+      </section>
+
+      <!-- STEP 2 -->
+      <section class="panel" *ngIf="step() === 2">
+        <div class="panel-head">
+          <h2>Keys</h2>
+          <div class="toolbar tight">
+            <button type="button" class="btn" (click)="toggleAll(true)">Select all</button>
+            <button type="button" class="btn" (click)="toggleAll(false)">Clear</button>
+            <button type="button" class="btn" (click)="go(1)">Back</button>
+            <button
+              type="button"
+              class="btn primary"
+              (click)="translateAll()"
+              [disabled]="isTranslating() || !selectedCount()"
+            >
+              {{ isTranslating() ? 'Translating…' : 'Translate' }}
+            </button>
+          </div>
+        </div>
+
+        <div class="table-wrap short">
+          <table>
+            <thead>
+              <tr><th></th><th>#</th><th>Key</th><th>English</th><th></th></tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let row of keysForm.controls; let i = index" [formGroup]="row">
+                <td><input type="checkbox" formControlName="selected" /></td>
+                <td>{{ i + 1 }}</td>
+                <td><input type="text" formControlName="key" /></td>
+                <td><input type="text" formControlName="englishContent" /></td>
+                <td><button type="button" class="link danger" (click)="removeRow(i)">Remove</button></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- STEP 3 -->
+      <section class="panel" *ngIf="step() === 3">
+        <div class="panel-head">
+          <h2>Translations</h2>
+          <div class="meta-inline">
+            <span>{{ targetLanguages().length }} languages</span>
+            <span>{{ translatedPct() }}% filled</span>
+          </div>
+        </div>
+
+        <div class="progress" *ngIf="isTranslating() || progressMsg()">
+          <div class="bar">
+            <span [style.width.%]="progressTotal() ? (progressDone() / progressTotal()) * 100 : 35"></span>
+          </div>
+          <small>{{ progressMsg() || 'Working…' }} ({{ progressDone() }}/{{ progressTotal() }})</small>
+        </div>
+
+        <div class="lang-tabs" role="tablist">
+          <button
+            type="button"
+            class="tab"
+            *ngFor="let lang of targetLanguages()"
+            [class.on]="activeLangId() === lang.LanguageMasterID"
+            (click)="selectLang(lang.LanguageMasterID)"
+          >
+            {{ lang.LanguageName }}
+          </button>
+        </div>
+
+        <div class="toolbar">
+          <input class="search" type="search" [formControl]="filterCtrl" placeholder="Filter…" />
+          <button type="button" class="btn" (click)="go(2)">Back</button>
+          <button
+            type="button"
+            class="btn accent"
+            (click)="translateAll()"
+            [disabled]="isTranslating() || !selectedCount()"
+          >
+            {{ isTranslating() ? 'Translating…' : 'Translate' }}
+          </button>
+          <button type="button" class="btn primary" (click)="go(4)" [disabled]="!hasKeys()">Continue</button>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Key</th>
+                <th>English</th>
+                <th>{{ activeLang() ? activeLang()!.LanguageName : 'Language' }}</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                *ngFor="let row of filteredKeys(); let i = index"
+                [class.ok]="row.controls.status.value === 'translated' || row.controls.status.value === 'saved'"
+                [class.err]="row.controls.status.value === 'error' || row.controls.status.value === 'save_error'"
+              >
+                <td>{{ i + 1 }}</td>
+                <td class="mono">{{ row.controls.key.value }}</td>
+                <td>{{ row.controls.englishContent.value }}</td>
+                <td>
+                  <textarea
+                    rows="2"
+                    *ngIf="activeLang() as lang"
+                    [formControl]="translationControl(row, lang.LanguageMasterID)"
+                  ></textarea>
+                </td>
+                <td>
+                  <span class="badge" [attr.data-status]="row.controls.status.value">
+                    {{ row.controls.status.value }}
+                  </span>
+                  <div class="msg" *ngIf="row.controls.message.value">{{ row.controls.message.value }}</div>
+                </td>
+              </tr>
+              <tr *ngIf="!filteredKeys().length">
+                <td colspan="5" class="empty">No rows</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- STEP 4 -->
+      <section class="panel target-panel" *ngIf="step() === 4" [formGroup]="contextForm">
+        <div class="panel-head compact">
+          <h2>Target</h2>
+          <div class="toolbar tight">
+            <span class="dot" [class.ready]="contextReady()"></span>
+            <button type="button" class="btn ghost" (click)="loadMeta()" [disabled]="busy()">Reload</button>
+          </div>
+        </div>
+        <div class="context-grid">
+          <label>
+            Project
+            <select formControlName="projectId">
+              <option value="">Select</option>
+              <option *ngFor="let p of projects()" [value]="p.lov_id">{{ p.item_to_display }}</option>
+            </select>
+          </label>
+          <label>
+            Product
+            <select formControlName="productId">
+              <option value="">Select</option>
+              <option *ngFor="let p of products()" [value]="p.lov_id">{{ p.item_to_display }}</option>
+            </select>
+          </label>
+          <label>
+            Module
+            <select formControlName="moduleId">
+              <option value="">Select</option>
+              <option *ngFor="let m of modules()" [value]="m.lov_id">{{ m.item_to_display }}</option>
+            </select>
+          </label>
+          <label>
+            Page
+            <select formControlName="pageId">
+              <option value="">Select</option>
+              <option *ngFor="let p of pages()" [value]="p.PageId">{{ p.PageKey }}</option>
+            </select>
+          </label>
+        </div>
+      </section>
+
+      <section class="panel" *ngIf="step() === 4">
+        <div class="panel-head">
+          <h2>Save</h2>
+        </div>
+
+        <div class="save-summary compact">
+          <div><strong>Keys</strong><span>{{ selectedCount() }}</span></div>
+          <div><strong>Fill</strong><span>{{ translatedPct() }}%</span></div>
+        </div>
+
+        <div class="progress" *ngIf="busy() || progressMsg()">
+          <div class="bar">
+            <span [style.width.%]="progressTotal() ? (progressDone() / progressTotal()) * 100 : 35"></span>
+          </div>
+          <small>{{ progressMsg() || 'Working…' }}</small>
+        </div>
+
+        <div class="actions">
+          <button type="button" class="btn" (click)="go(3)">Back</button>
+          <button
+            type="button"
+            class="btn primary big"
+            (click)="insertSelected()"
+            [disabled]="busy() || !selectedCount() || !contextReady()"
+          >
+            Save {{ selectedCount() }} keys
+          </button>
+          <button type="button" class="btn" (click)="verifyInResourceManager()" [disabled]="busy() || !contextReady()">
+            Verify
+          </button>
+          <button type="button" class="btn" (click)="clearRows()">Start over</button>
+        </div>
+
+        <div class="verify-box" *ngIf="verifyRows().length">
+          <h3>Verified</h3>
+          <div class="table-wrap short">
+            <table>
+              <thead>
+                <tr>
+                  <th>Key</th>
+                  <th>English</th>
+                  <th>Language text</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let r of verifyRows()">
+                  <td class="mono">{{ r.short_key_name || r.language_key_name }}</td>
+                  <td>{{ r.LanguageText }}</td>
+                  <td>{{ r.selected_lang_text }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+</div>
+
