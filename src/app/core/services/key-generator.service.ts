@@ -145,6 +145,114 @@ export class KeyGeneratorService {
     }));
   }
 
+  /**
+   * Build rows from pasted JSON: { "k_foo": "English text", ... }
+   * Also accepts arrays and one-level nested wrappers.
+   */
+  buildFromJson(raw: string): BulkKeyRow[] {
+    const pairs = this.parseJsonKeyValues(raw);
+    if (!pairs.length) {
+      throw new Error('No key/value pairs found in JSON');
+    }
+    const uniqueKeys = this.ensureUnique(pairs.map((p) => p.key));
+    return pairs.map((p, i) => ({
+      id: `${Date.now()}_${i}_${Math.random().toString(36).slice(2, 8)}`,
+      key: uniqueKeys[i],
+      englishContent: p.english,
+      translations: {},
+      selected: true,
+      status: 'draft' as const,
+    }));
+  }
+
+  parseJsonKeyValues(raw: string): { key: string; english: string }[] {
+    const parsed = this.parseLenientJson(this.stripCodeFence(raw));
+    return this.extractPairs(parsed);
+  }
+
+  private stripCodeFence(raw: string): string {
+    return raw
+      .trim()
+      .replace(/^\uFEFF/, '')
+      .replace(/^```(?:json)?\s*/i, '')
+      .replace(/\s*```$/, '');
+  }
+
+  private parseLenientJson(raw: string): unknown {
+    const text = raw.trim();
+    if (!text) {
+      throw new Error('Paste JSON like { "k_key": "English text" }');
+    }
+    try {
+      return JSON.parse(text);
+    } catch {
+      try {
+        return JSON.parse(text.replace(/,(\s*[}\]])/g, '$1'));
+      } catch {
+        throw new Error('Invalid JSON. Paste an object like { "k_key": "English text" }');
+      }
+    }
+  }
+
+  private extractPairs(data: unknown): { key: string; english: string }[] {
+    if (data == null) return [];
+
+    if (Array.isArray(data)) {
+      const out: { key: string; english: string }[] = [];
+      for (const item of data) {
+        if (Array.isArray(item) && item.length >= 2) {
+          const k = String(item[0] ?? '').trim();
+          const v = String(item[1] ?? '').trim();
+          if (k && v) out.push({ key: k, english: v });
+          continue;
+        }
+        if (item && typeof item === 'object') {
+          const rec = item as Record<string, unknown>;
+          const k = String(
+            rec['key'] ?? rec['Key'] ?? rec['name'] ?? rec['languageKey'] ?? rec['language_key'] ?? '',
+          ).trim();
+          const v = String(
+            rec['value'] ??
+              rec['english'] ??
+              rec['englishContent'] ??
+              rec['text'] ??
+              rec['LanguageText'] ??
+              '',
+          ).trim();
+          if (k && v) {
+            out.push({ key: k, english: v });
+            continue;
+          }
+          out.push(...this.fromStringRecord(rec));
+        }
+      }
+      return out;
+    }
+
+    if (typeof data === 'object') {
+      const rec = data as Record<string, unknown>;
+      const direct = this.fromStringRecord(rec);
+      if (direct.length) return direct;
+      for (const val of Object.values(rec)) {
+        if (val && typeof val === 'object') {
+          const nested = this.extractPairs(val);
+          if (nested.length) return nested;
+        }
+      }
+    }
+    return [];
+  }
+
+  private fromStringRecord(rec: Record<string, unknown>): { key: string; english: string }[] {
+    const out: { key: string; english: string }[] = [];
+    for (const [k, v] of Object.entries(rec)) {
+      if (typeof v === 'string' && k.trim() && v.trim()) {
+        out.push({ key: k.trim(), english: v.trim() });
+      }
+    }
+    return out;
+  }
+
   private detectCaseStyle(sample: string): ReferencePattern['caseStyle'] {
     if (!sample) return 'camel';
     if (sample === sample.toUpperCase() && /[A-Z]/.test(sample)) return 'upper';

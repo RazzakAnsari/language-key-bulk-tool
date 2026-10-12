@@ -1,4 +1,5 @@
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap');
+@import '@ng-select/ng-select/themes/default.theme.css';
 
 *,
 *::before,
@@ -30,4 +31,59 @@ code {
   background: #e2e8f0;
   padding: 1px 5px;
   border-radius: 4px;
+}
+
+.ng-select {
+  font-family: inherit;
+}
+
+.ng-select .ng-select-container {
+  min-height: 42px;
+  border-radius: 10px;
+  border-color: #cbd5e1;
+  background: #fff;
+}
+
+.ng-select.ng-select-focused .ng-select-container,
+.ng-select.ng-select-opened .ng-select-container {
+  border-color: #0f766e;
+  box-shadow: 0 0 0 2px rgba(15, 118, 110, 0.25);
+}
+
+.ng-select.ng-select-focused:not(.ng-select-opened) > .ng-select-container {
+  border-color: #0f766e;
+}
+
+.ng-select .ng-placeholder {
+  color: #94a3b8;
+}
+
+.ng-select .ng-arrow-wrapper {
+  width: 22px;
+}
+
+.ng-dropdown-panel {
+  border-color: #e2e8f0;
+  border-radius: 10px;
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.12);
+  z-index: 1200;
+}
+
+.ng-dropdown-panel .ng-dropdown-panel-items .ng-option {
+  padding: 8px 12px;
+  font-size: 0.9rem;
+}
+
+.ng-dropdown-panel .ng-dropdown-panel-items .ng-option.ng-option-marked,
+.ng-dropdown-panel .ng-dropdown-panel-items .ng-option.ng-option-selected {
+  background: #f0fdfa;
+  color: #0f766e;
+}
+
+.ng-select .ng-input > input {
+  color: #0f172a;
+}
+
+ng-select.ng-invalid.ng-touched .ng-select-container {
+  border-color: #dc3545;
 }

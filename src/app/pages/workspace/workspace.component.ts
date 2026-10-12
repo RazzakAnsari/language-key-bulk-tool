@@ -9,6 +9,7 @@ import {
   Validators,
 } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
+import { NgSelectComponent } from '@ng-select/ng-select';
 import {
   AiProvider,
   BulkKeyRow,
@@ -38,7 +39,7 @@ type KeyRowGroup = FormGroup<{
 @Component({
   selector: 'app-workspace',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule],
+  imports: [CommonModule, ReactiveFormsModule, NgSelectComponent],
   templateUrl: './workspace.component.html',
   styleUrl: './workspace.component.scss',
 })
@@ -70,6 +71,9 @@ export class WorkspaceComponent implements OnInit {
   menuOpen = signal(false);
   /** Side menu: Master workspace vs Settings (API keys) */
   activePage = signal<'master' | 'settings'>('master');
+  inputMode = signal<'fields' | 'json'>('fields');
+  jsonHint = signal('');
+  jsonHintOk = signal(false);
   /** bump when FormArray mutates so computed() re-reads values */
   private formTick = signal(0);
 
@@ -88,6 +92,11 @@ export class WorkspaceComponent implements OnInit {
 
   readonly keysForm = this.fb.array<KeyRowGroup>([]);
   readonly filterCtrl = this.fb.nonNullable.control('');
+  readonly jsonInput = this.fb.nonNullable.control('');
+  readonly jsonPlaceholder = `{
+  "k_transferNotAllowed": "Transfer not allowed",
+  "k_transferSoldOut": "The $vehicleName transfer on $date is no longer available."
+}`;
 
   readonly settingsForm = this.fb.nonNullable.group({
     provider: this.fb.nonNullable.control<AiProvider>('free'),
@@ -115,7 +124,7 @@ export class WorkspaceComponent implements OnInit {
   stepTitle = computed(() => {
     switch (this.step()) {
       case 1:
-        return 'English texts';
+        return this.inputMode() === 'json' ? 'JSON keys' : 'English texts';
       case 2:
         return 'Keys';
       case 3:
@@ -179,10 +188,44 @@ export class WorkspaceComponent implements OnInit {
     this.contextForm.valueChanges.subscribe(() => this.bumpForm());
     this.keysForm.valueChanges.subscribe(() => this.bumpForm());
     this.filterCtrl.valueChanges.subscribe(() => this.bumpForm());
+    this.jsonInput.valueChanges.subscribe(() => this.refreshJsonHint());
     this.generateForm.controls.provider.valueChanges.subscribe((provider) => {
       this.settingsSvc.save({ provider });
     });
     this.loadMeta();
+  }
+
+  setInputMode(mode: 'fields' | 'json'): void {
+    this.inputMode.set(mode);
+    if (mode === 'json') this.refreshJsonHint();
+  }
+
+  readonly searchLov = (term: string, item: LovItem): boolean => {
+    const q = (term || '').trim().toLowerCase();
+    if (!q || !item) return true;
+    return (
+      (item.item_to_display || '').toLowerCase().includes(q) ||
+      (item.lov_id || '').toLowerCase().includes(q)
+    );
+  };
+
+  readonly searchPage = (term: string, item: CmsPageLegacy): boolean => {
+    const q = (term || '').trim().toLowerCase();
+    if (!q || !item) return true;
+    return (
+      (item.PageKey || '').toLowerCase().includes(q) ||
+      (item.PageId || '').toLowerCase().includes(q)
+    );
+  };
+
+  readonly compareId = (a: unknown, b: unknown): boolean => String(a ?? '') === String(b ?? '');
+
+  onJsonPaste(ev: ClipboardEvent): void {
+    const text = ev.clipboardData?.getData('text') || '';
+    if (!text.trim()) return;
+    ev.preventDefault();
+    this.jsonInput.setValue(text);
+    this.applyJsonKeys(true);
   }
 
   logout(): void {
@@ -239,11 +282,17 @@ export class WorkspaceComponent implements OnInit {
         firstValueFrom(this.cms.getAllLanguages()),
         firstValueFrom(this.cms.getLegacyPages()),
       ]);
-      const items = this.asArray<LovItem>(lov);
+      const items = this.asArray<LovItem>(lov).map((x) => ({ ...x, lov_id: String(x.lov_id ?? '') }));
       this.projects.set(this.sortLov(items.filter((x) => x.lov_key === 'PROJECT')));
       this.products.set(this.sortLov(items.filter((x) => x.lov_key === 'PRODUCT')));
       this.modules.set(this.sortLov(items.filter((x) => x.lov_key === 'MODULE')));
-      this.pages.set(this.asArray<CmsPageLegacy>(pages));
+      this.pages.set(
+        this.asArray<CmsPageLegacy>(pages).map((p) => ({
+          ...p,
+          PageId: String(p.PageId ?? ''),
+          PageKey: String(p.PageKey ?? ''),
+        })),
+      );
 
       const languageList = this.asArray<LanguageItem>(langs);
       this.languages.set(languageList);
@@ -277,6 +326,10 @@ export class WorkspaceComponent implements OnInit {
   }
 
   buildKeys(): void {
+    if (this.inputMode() === 'json') {
+      this.applyJsonKeys(false);
+      return;
+    }
     if (this.generateForm.controls.referenceKey.invalid) {
       this.generateForm.controls.referenceKey.markAsTouched();
       this.toastSvc.err('Reference key required');
@@ -300,6 +353,44 @@ export class WorkspaceComponent implements OnInit {
     this.verifyRows.set([]);
     this.step.set(2);
     this.toastSvc.ok(`${created.length} keys generated`);
+  }
+
+  applyJsonKeys(fromPaste: boolean): void {
+    const raw = this.jsonInput.value.trim();
+    if (!raw) {
+      if (!fromPaste) this.toastSvc.err('Paste JSON with language keys');
+      return;
+    }
+    try {
+      const created = this.keys.buildFromJson(raw);
+      this.replaceKeys(created);
+      this.verifyRows.set([]);
+      this.refreshJsonHint();
+      this.step.set(2);
+      this.toastSvc.ok(`${created.length} keys loaded from JSON`);
+    } catch (e: any) {
+      this.jsonHintOk.set(false);
+      this.jsonHint.set(e?.message || 'Invalid JSON');
+      if (!fromPaste) this.toastSvc.err(e?.message || 'Invalid JSON');
+    }
+  }
+
+  private refreshJsonHint(): void {
+    const raw = this.jsonInput.value.trim();
+    if (!raw) {
+      this.jsonHint.set('');
+      this.jsonHintOk.set(false);
+      return;
+    }
+    try {
+      const n = this.keys.parseJsonKeyValues(raw).length;
+      this.jsonHintOk.set(true);
+      this.jsonHint.set(n ? `${n} keys ready — next tab will fill automatically` : 'No string key/value pairs found');
+      if (!n) this.jsonHintOk.set(false);
+    } catch (e: any) {
+      this.jsonHintOk.set(false);
+      this.jsonHint.set(e?.message || 'Invalid JSON');
+    }
   }
 
   async translateAll(): Promise<void> {
@@ -410,10 +501,10 @@ export class WorkspaceComponent implements OnInit {
 
     const ctx = this.contextForm.getRawValue();
     const preview = this.cms.buildSavePayload({
-      projectId: ctx.projectId,
-      productId: ctx.productId,
-      moduleId: ctx.moduleId,
-      pageId: ctx.pageId,
+      projectId: String(ctx.projectId || ''),
+      productId: String(ctx.productId || ''),
+      moduleId: String(ctx.moduleId || ''),
+      pageId: String(ctx.pageId || ''),
       rows,
       languages: this.languages(),
     });
@@ -423,7 +514,8 @@ export class WorkspaceComponent implements OnInit {
     }
 
     const productLabel =
-      this.products().find((p) => p.lov_id === ctx.productId)?.item_to_display || ctx.productId;
+      this.products().find((p) => p.lov_id === String(ctx.productId || ''))?.item_to_display ||
+      String(ctx.productId || '');
     if (
       !confirm(
         `Save ${preview.formData.length} keys?\n\nProduct: ${productLabel}\nONE SaveCMSLanguageKey call`,
@@ -438,10 +530,10 @@ export class WorkspaceComponent implements OnInit {
     this.progressMsg.set(`Saving ${preview.formData.length} keys (single API call)…`);
     try {
       const result = await this.cms.saveResourceManager({
-        projectId: ctx.projectId,
-        productId: ctx.productId,
-        moduleId: ctx.moduleId,
-        pageId: ctx.pageId,
+        projectId: String(ctx.projectId || ''),
+        productId: String(ctx.productId || ''),
+        moduleId: String(ctx.moduleId || ''),
+        pageId: String(ctx.pageId || ''),
         rows,
         languages: this.languages(),
       });
@@ -477,10 +569,10 @@ export class WorkspaceComponent implements OnInit {
         .filter((r) => r.selected && r.status === 'saved')
         .map((r) => r.key.trim());
       const result = await this.cms.verifySavedKeys({
-        projectId: ctx.projectId,
-        productId: ctx.productId,
-        moduleId: ctx.moduleId,
-        pageId: ctx.pageId,
+        projectId: String(ctx.projectId || ''),
+        productId: String(ctx.productId || ''),
+        moduleId: String(ctx.moduleId || ''),
+        pageId: String(ctx.pageId || ''),
         languageId: en.LanguageMasterID,
         keys,
       });

@@ -106,18 +106,46 @@
       </div>
 
       <!-- STEP 1 -->
-      <section class="panel" *ngIf="step() === 1" [formGroup]="generateForm">
+      <section class="panel" *ngIf="step() === 1">
+        <div [formGroup]="generateForm">
         <div class="panel-head">
-          <h2>English texts</h2>
-          <button type="button" class="btn accent" (click)="addEnglishField()">+ Add</button>
+          <h2>{{ inputMode() === 'json' ? 'JSON keys' : 'English texts' }}</h2>
+          <div class="toolbar tight">
+            <div class="mode-toggle" role="tablist">
+              <button
+                type="button"
+                class="mode-btn"
+                [class.on]="inputMode() === 'fields'"
+                (click)="setInputMode('fields')"
+              >
+                Text
+              </button>
+              <button
+                type="button"
+                class="mode-btn"
+                [class.on]="inputMode() === 'json'"
+                (click)="setInputMode('json')"
+              >
+                JSON
+              </button>
+            </div>
+            <button
+              *ngIf="inputMode() === 'fields'"
+              type="button"
+              class="btn accent"
+              (click)="addEnglishField()"
+            >
+              + Add
+            </button>
+          </div>
         </div>
 
         <div class="two-col">
-          <label>
+          <label *ngIf="inputMode() === 'fields'">
             Reference key
             <input type="text" formControlName="referenceKey" placeholder="k_printItinerary" />
           </label>
-          <label>
+          <label [class.span-2]="inputMode() === 'json'">
             Translator
             <div class="provider-row">
               <select formControlName="provider">
@@ -131,27 +159,51 @@
           </label>
         </div>
 
-        <div class="text-list" formArrayName="texts">
-          <div class="text-row" *ngFor="let ctrl of texts.controls; let i = index" [formGroupName]="i">
-            <span class="text-no">{{ i + 1 }}</span>
-            <textarea
-              rows="3"
-              formControlName="value"
-              [placeholder]="i === 0 ? 'Welcome back' : 'English text'"
-            ></textarea>
-            <button
-              type="button"
-              class="btn danger-outline"
-              (click)="removeEnglishField(i)"
-              [disabled]="texts.length <= 1"
-            >
-              Remove
-            </button>
+        <ng-container *ngIf="inputMode() === 'fields'; else jsonBlock">
+          <div class="text-list" formArrayName="texts">
+            <div class="text-row" *ngFor="let ctrl of texts.controls; let i = index" [formGroupName]="i">
+              <span class="text-no">{{ i + 1 }}</span>
+              <textarea
+                rows="3"
+                formControlName="value"
+                [placeholder]="i === 0 ? 'Welcome back' : 'English text'"
+              ></textarea>
+              <button
+                type="button"
+                class="btn danger-outline"
+                (click)="removeEnglishField(i)"
+                [disabled]="texts.length <= 1"
+              >
+                Remove
+              </button>
+            </div>
           </div>
-        </div>
+        </ng-container>
+
+        <ng-template #jsonBlock>
+          <label class="json-box">
+            Paste JSON
+            <textarea
+              rows="14"
+              class="json-input"
+              [formControl]="jsonInput"
+              (paste)="onJsonPaste($event)"
+              [placeholder]="jsonPlaceholder"
+            ></textarea>
+          </label>
+          <p class="json-hint" *ngIf="jsonHint()" [class.ok]="jsonHintOk()" [class.bad]="!jsonHintOk()">
+            {{ jsonHint() }}
+          </p>
+          <p class="hint muted" *ngIf="!jsonHint()">
+            Paste <code>{{ '{' }} "k_myKey": "English text" {{ '}' }}</code>. Keys and English fill the next tab automatically.
+          </p>
+        </ng-template>
 
         <div class="actions end">
-          <button type="button" class="btn primary big" (click)="buildKeys()">Generate keys</button>
+          <button type="button" class="btn primary big" (click)="buildKeys()">
+            {{ inputMode() === 'json' ? 'Fill keys from JSON' : 'Generate keys' }}
+          </button>
+        </div>
         </div>
       </section>
 
@@ -289,31 +341,83 @@
         <div class="context-grid">
           <label>
             Project
-            <select formControlName="projectId">
-              <option value="">Select</option>
-              <option *ngFor="let p of projects()" [value]="p.lov_id">{{ p.item_to_display }}</option>
-            </select>
+            <ng-select
+              [items]="projects()"
+              bindLabel="item_to_display"
+              bindValue="lov_id"
+              formControlName="projectId"
+              placeholder="Select project"
+              notFoundText="No match"
+              [searchable]="true"
+              [clearable]="true"
+              [editableSearchTerm]="true"
+              [virtualScroll]="true"
+              [loading]="busy()"
+              [searchFn]="searchLov"
+              [compareWith]="compareId"
+              appendTo="body"
+              dropdownPosition="auto"
+            ></ng-select>
           </label>
           <label>
             Product
-            <select formControlName="productId">
-              <option value="">Select</option>
-              <option *ngFor="let p of products()" [value]="p.lov_id">{{ p.item_to_display }}</option>
-            </select>
+            <ng-select
+              [items]="products()"
+              bindLabel="item_to_display"
+              bindValue="lov_id"
+              formControlName="productId"
+              placeholder="Select product"
+              notFoundText="No match"
+              [searchable]="true"
+              [clearable]="true"
+              [editableSearchTerm]="true"
+              [virtualScroll]="true"
+              [loading]="busy()"
+              [searchFn]="searchLov"
+              [compareWith]="compareId"
+              appendTo="body"
+              dropdownPosition="auto"
+            ></ng-select>
           </label>
           <label>
             Module
-            <select formControlName="moduleId">
-              <option value="">Select</option>
-              <option *ngFor="let m of modules()" [value]="m.lov_id">{{ m.item_to_display }}</option>
-            </select>
+            <ng-select
+              [items]="modules()"
+              bindLabel="item_to_display"
+              bindValue="lov_id"
+              formControlName="moduleId"
+              placeholder="Select module"
+              notFoundText="No match"
+              [searchable]="true"
+              [clearable]="true"
+              [editableSearchTerm]="true"
+              [virtualScroll]="true"
+              [loading]="busy()"
+              [searchFn]="searchLov"
+              [compareWith]="compareId"
+              appendTo="body"
+              dropdownPosition="auto"
+            ></ng-select>
           </label>
           <label>
             Page
-            <select formControlName="pageId">
-              <option value="">Select</option>
-              <option *ngFor="let p of pages()" [value]="p.PageId">{{ p.PageKey }}</option>
-            </select>
+            <ng-select
+              [items]="pages()"
+              bindLabel="PageKey"
+              bindValue="PageId"
+              formControlName="pageId"
+              placeholder="Select page"
+              notFoundText="No match"
+              [searchable]="true"
+              [clearable]="true"
+              [editableSearchTerm]="true"
+              [virtualScroll]="true"
+              [loading]="busy()"
+              [searchFn]="searchPage"
+              [compareWith]="compareId"
+              appendTo="body"
+              dropdownPosition="auto"
+            ></ng-select>
           </label>
         </div>
       </section>

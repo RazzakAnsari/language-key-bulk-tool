@@ -418,6 +418,69 @@
   margin-bottom: 12px;
 }
 
+.two-col .span-2 {
+  grid-column: 1 / -1;
+}
+
+.mode-toggle {
+  display: inline-flex;
+  padding: 3px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #f8fafc;
+  gap: 2px;
+}
+
+.mode-btn {
+  border: 0;
+  background: transparent;
+  color: #64748b;
+  border-radius: 8px;
+  padding: 7px 12px;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.mode-btn.on {
+  background: #0f766e;
+  color: #fff;
+}
+
+.json-box {
+  margin: 4px 0 8px;
+}
+
+.json-input {
+  min-height: 280px;
+  resize: vertical;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+
+.json-hint {
+  margin: 0 0 8px;
+  font-size: 0.82rem;
+}
+
+.json-hint.ok {
+  color: #0f766e;
+}
+
+.json-hint.bad {
+  color: #b91c1c;
+}
+
+.context-grid label {
+  min-width: 0;
+}
+
+.context-grid ng-select {
+  width: 100%;
+}
+
 label {
   display: grid;
   gap: 6px;

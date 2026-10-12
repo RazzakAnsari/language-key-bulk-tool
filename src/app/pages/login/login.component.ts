@@ -27,9 +27,11 @@ export class LoginComponent implements OnInit {
   otpUserId = signal('');
   showImport = signal(false);
 
+  private readonly credsKey = 'lkb_login_creds';
+
   readonly loginForm = this.fb.nonNullable.group({
-    email: ['razzak@infohybrid.com', [Validators.required, Validators.email]],
-    password: ['Razzak@123', Validators.required],
+    email: ['', [Validators.required, Validators.email]],
+    password: ['', Validators.required],
   });
 
   readonly otpForm = this.fb.nonNullable.group({
@@ -50,6 +52,7 @@ export class LoginComponent implements OnInit {
       this.router.navigateByUrl('/workspace');
       return;
     }
+    this.loadSavedCreds();
     this.auth.syncServerTime().subscribe();
   }
 
@@ -69,6 +72,7 @@ export class LoginComponent implements OnInit {
         this.loading.set(false);
         this.loader.hide();
         if (res.needsOtp && res.userId) {
+          this.saveCreds(email.trim(), password);
           this.otpMode.set(true);
           this.otpUserId.set(res.userId);
           this.error.set(res.message);
@@ -80,6 +84,7 @@ export class LoginComponent implements OnInit {
           this.toast.err(res.message || 'Login failed');
           return;
         }
+        this.saveCreds(email.trim(), password);
         this.toast.ok('Signed in');
         this.router.navigateByUrl('/workspace');
       },
@@ -147,5 +152,27 @@ export class LoginComponent implements OnInit {
     }
     this.toast.ok('Session imported');
     this.router.navigateByUrl('/workspace');
+  }
+
+  private loadSavedCreds(): void {
+    try {
+      const raw = localStorage.getItem(this.credsKey);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as { email?: string; password?: string };
+      this.loginForm.patchValue({
+        email: parsed.email || '',
+        password: parsed.password || '',
+      });
+    } catch {
+      /* ignore bad storage */
+    }
+  }
+
+  private saveCreds(email: string, password: string): void {
+    try {
+      localStorage.setItem(this.credsKey, JSON.stringify({ email, password }));
+    } catch {
+      /* quota / private mode */
+    }
   }
 }
